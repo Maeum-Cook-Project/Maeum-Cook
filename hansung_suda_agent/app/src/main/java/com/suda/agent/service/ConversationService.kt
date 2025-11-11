@@ -40,12 +40,23 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.json.JSONObject
 import com.suda.agent.core.IpConfig
+import io.ktor.server.application.*
+import io.ktor.server.engine.*
+import io.ktor.server.cio.*
+import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.websocket.WebSocketSession
+import io.ktor.websocket.send
+import kotlinx.coroutines.GlobalScope
+import java.util.Collections
+
 
 class ConversationService(
     private val context: Context
 ) {
     private val TAG = ConversationService::class.simpleName
 
+    private val connectedClients = Collections.synchronizedSet(LinkedHashSet<WebSocketSession>())
     private val httpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
         OkHttpClient.Builder()
@@ -125,6 +136,8 @@ class ConversationService(
             updateNotification("Initializing AudioTrack...")
             initAudioTrack()
             delay(200)
+
+            startWebSocketServer()
 
             dbHelper.writableDatabase
             dbHelper.initApiParam()
@@ -475,6 +488,8 @@ class ConversationService(
                 val llmStart = System.currentTimeMillis()
                 val r = llmClient.Infer(prompt)
                 lastLlmLatencyMs = System.currentTimeMillis() - llmStart
+
+                broadcastCommand(r)
                 r
             }.getOrElse { e ->
                 Log.e(TAG, "LLM inference failed, using echo response", e)
@@ -765,5 +780,80 @@ class ConversationService(
         object TtsDone : Event()
         object UserStop : Event()
         data class SystemError(val error: String) : Event()
+    }
+    private fun startWebSocketServer(){
+        GlobalScope.launch {
+            embeddedServer(CIO,port=8765,host="0.0.0.0"){
+                install(WebSockets)
+                routing {
+                    webSocket("/control"){
+                        connectedClients.add(this)
+                        Log.d(TAG,"클라이언트 연결됨!")
+                        try{
+                            for (frame in incoming){
+                                //핸드폰 앱에서 보낸 JSON 송신
+                            }
+                        }catch(e:Exception){
+                            Log.e(TAG,"클라이언트 오류 : ${e.message}")
+                        }finally {
+                            connectedClients.remove(this)
+                            Log.d(TAG,"클라이언트 연결 끊김.")
+                        }
+                    }
+                }
+            }.start(wait=true)
+        }
+        Log.d(TAG,"websocket 서버가 0.0.0.0:8765에서 시작 대기 중...")
+    }
+    private fun broadcastCommand(llm_output: String) {
+        // LLM 값을 표준 JSON으로 번역
+        val commandJson = parseLlmOutput(llm_output)
+
+        if (commandJson != null) {
+            GlobalScope.launch { // 비동기(백그라운드)로 전송
+                Log.d(TAG, "클라이언트로 명령 전송: $commandJson")
+                connectedClients.forEach { client ->
+                    try {
+                        client.send(commandJson) // 연결된 모든 노트북에 JSON 발사
+                    } catch (e: Exception) {
+                        Log.e(TAG, "WebSocket 전송 실패: ${e.message}")
+                    }
+                }
+            }
+        } else {
+            Log.w(TAG, "알 수 없는 LLM 값이라 전송 안 함: $llm_output")
+        }
+    }
+
+    /**노트북 시뮬레이터가 이해할 수 있는 표준 JSON으로 번역합니다.**/
+
+    private fun parseLlmOutput(llm_output: String): String? {
+        val trimmedOutput = llm_output.trim()
+
+        return when {
+            // 인덕션 ON/OFF
+            trimmedOutput.startsWith("<maum_0>(type=1)") -> """{"device": "induction", "command": "power", "value": "on"}"""
+            trimmedOutput.startsWith("<maum_0>(type=2)") -> """{"device": "induction", "command": "power", "value": "off"}"""
+
+            // 환풍기 ON/OFF
+            trimmedOutput.startsWith("<maum_1>(type=1)") -> """{"device": "fan", "command": "power", "value": "on"}"""
+            trimmedOutput.startsWith("<maum_1>(type=2)") -> """{"device": "fan", "command": "power", "value": "off"}"""
+
+            // 싱크대 ON/OFF
+            trimmedOutput.startsWith("<maum_2>(type=1)") -> """{"device": "sink", "command": "power", "value": "on"}"""
+            trimmedOutput.startsWith("<maum_2>(type=2)") -> """{"device": "sink", "command": "power", "value": "off"}"""
+
+            // 인덕션 화력 (1-3단계)
+            trimmedOutput.startsWith("<maum_3>(type=1)") -> """{"device": "induction", "command": "level", "value": 1}"""
+            trimmedOutput.startsWith("<maum_3>(type=2)") -> """{"device": "induction", "command": "level", "value": 2}"""
+            trimmedOutput.startsWith("<maum_3>(type=3)") -> """{"device": "induction", "command": "level", "value": 3}"""
+
+            // 인덕션 타이머 (1, 3, 5분 -> 초로 변환)
+            trimmedOutput.startsWith("<maum_4>(type=1)") -> """{"device": "induction", "command": "timer", "value": 60}""" // 1분
+            trimmedOutput.startsWith("<maum_4>(type=2)") -> """{"device": "induction", "command": "timer", "value": 180}""" // 3분
+            trimmedOutput.startsWith("<maum_4>(type=3)") -> """{"device": "induction", "command": "timer", "value": 300}""" // 5분
+
+            else -> null // 모르는 명령은 무시
+        }
     }
 }

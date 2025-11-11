@@ -87,4 +87,8 @@ dependencies {
     // Networking
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+    implementation("io.ktor:ktor-server-cio:2.3.11")
+    implementation("io.ktor:ktor-server-websockets:2.3.11")
+    implementation("io.ktor:ktor-server-core:2.3.11")
+    implementation("org.slf4j:slf4j-simple:2.0.7")
 }
