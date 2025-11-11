@@ -1,0 +1,12 @@
+# --- QCS6490 안드로이드 서버 앱 (hansung_suda_agent) ---
+/hansung_suda_agent/.gradle
+/hansung_suda_agent/.idea
+/hansung_suda_agent/app/build
+/hansung_suda_agent/build
+/hansung_suda_agent/local.properties
+
+# --- OS 및 기타 ---
+.DS_Store
+Thumbs.db
+venv/
+__pycache__/
