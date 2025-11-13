@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
+    "build":"vite build",
+    "workbox": "workbox generateSW workbox-config.js",
     "dev": "EXPO_NO_TELEMETRY=1 expo start --tunnel",
     "android": "EXPO_NO_TELEMETRY=1 expo start --android",
     "ios": "EXPO_NO_TELEMETRY=1 expo start --ios",
