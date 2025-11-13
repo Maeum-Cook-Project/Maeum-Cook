@@ -16,6 +16,7 @@ import { useColorScheme, Alert, View, ActivityIndicator } from 'react-native';
 import { SystemBars } from 'react-native-edge-to-edge';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { TimerProvider } from '@/contexts/TimerContext';
+import {WebSocketProvider} from '@/contexts/WebSocketContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -86,16 +87,18 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <TimerProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <SystemBars style="auto" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="onboarding" />
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </TimerProvider>
+      <WebSocketProvider>
+        <TimerProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <SystemBars style="auto" />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="onboarding" />
+              <Stack.Screen name="(tabs)" />
+            </Stack>
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </TimerProvider>
+      </WebSocketProvider>
     </GestureHandlerRootView>
   );
 }
