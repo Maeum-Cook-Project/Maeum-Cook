@@ -1,7 +1,7 @@
 import React, {createContext, useContext, useEffect,useRef,useState,ReactNode} from 'react';
 
 //IP주소 환경마다 변경필요!
-const QCS6490_IP="192.168.0.0";
+const QCS6490_IP="192.168.0.81";
 const WEBSOCKET_URL=`ws://${QCS6490_IP}:8765/control`;
 
 //Context가 제공할 값 정의
@@ -37,6 +37,8 @@ export const WebSocketProvider=({children}:{children:ReactNode})=>{
         
         socket.onopen=()=>{
             console.log("[WebSocket] QCS6490 서버 연결 성공");
+            setIsConnected(true);
+
         };
         socket.onclose=(e)=>{
             console.log("[WebSocket] 서버 연걸 끊김",e);

@@ -46,6 +46,7 @@ import io.ktor.server.cio.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.WebSocketSession
+import io.ktor.websocket.readText
 import io.ktor.websocket.send
 import kotlinx.coroutines.GlobalScope
 import java.util.Collections
@@ -791,6 +792,12 @@ class ConversationService(
                         Log.d(TAG,"클라이언트 연결됨!")
                         try{
                             for (frame in incoming){
+                                val text=(frame as? io.ktor.websocket.Frame.Text)?.readText()
+                                if (text!=null){
+                                    Log.d(TAG,"클라이언트로부터 JSON 수신 : $text")
+
+                                    broadcastJson(text)
+                                }
                                 //핸드폰 앱에서 보낸 JSON 송신
                             }
                         }catch(e:Exception){
@@ -804,6 +811,21 @@ class ConversationService(
             }.start(wait=true)
         }
         Log.d(TAG,"websocket 서버가 0.0.0.0:8765에서 시작 대기 중...")
+    }
+
+    private fun broadcastJson(jsonString:String){
+        GlobalScope.launch{
+            Log.d(TAG,"모든 클라이언트에게 JSON 방송 : $jsonString")
+
+            connectedClients.forEach{client->
+                try{
+                    client.send(jsonString)
+                }catch(e:Exception){
+                    Log.e(TAG,"WebSocket 전송 실패 : ${e.message}")
+                }
+
+            }
+        }
     }
     private fun broadcastCommand(llm_output: String) {
         // LLM 값을 표준 JSON으로 번역

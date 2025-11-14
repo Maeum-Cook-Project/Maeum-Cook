@@ -62,7 +62,7 @@ export default function RootLayout() {
         router.replace('/onboarding');
       } else {
         console.log('Navigating to home');
-        router.replace('/(tabs)/(home)/');
+        router.replace('/(tabs)/(home)');
       }
     }
   }, [loaded, isReady, hasCompletedOnboarding]);
