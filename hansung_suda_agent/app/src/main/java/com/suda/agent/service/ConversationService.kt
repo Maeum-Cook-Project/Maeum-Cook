@@ -187,7 +187,7 @@ class ConversationService(
 
     private fun initializeLLAMA() {
         runCatching {
-            modelPath = "/data/local/tmp/model/korean/llama-maum-skm-htp.json"
+            modelPath = "/data/local/tmp/llama-maum-skm-htp.json"
             if (llmClient.Init(modelPath) == 0) {
                 Log.d(TAG, "LLM initialization success")
             } else {
@@ -663,12 +663,67 @@ class ConversationService(
             Log.e(TAG, "Error during audio playback", e)
         }
     }
-
     private fun getSimpleTtsText(token: String, parameters: Map<String, String>): String {
-        val apiCallParam = dbHelper.selectByMultiParam(token, parameters)
-            ?: throw Exception("$token Type Not Found type : $parameters")
+        try {
+            // 1. 인덕션 제어 (maum_0)
+            if (token.contains("maum_0")) {
+                val type = parameters["type"]
+                return when (type) {
+                    "1" -> "인덕션을 켰습니다."
+                    "2" -> "인덕션을 껐습니다."
+                    else -> "인덕션 명령을 수행했습니다."
+                }
+            }
 
-        return apiCallParam.answerKr
+            // 2. 환풍기 제어 (maum_1)
+            if (token.contains("maum_1")) {
+                val type = parameters["type"]
+                return when (type) {
+                    "1" -> "환풍기를 켰습니다."
+                    "2" -> "환풍기를 껐습니다."
+                    else -> "환풍기 명령을 수행했습니다."
+                }
+            }
+
+            // 3. 싱크대 제어 (maum_2)
+            if (token.contains("maum_2")) {
+                val type = parameters["type"]
+                return when (type) {
+                    "1" -> "물을 틀었습니다."
+                    "2" -> "물을 잠갔습니다."
+                    else -> "싱크대 명령을 수행했습니다."
+                }
+            }
+
+            // 4. 화력 조절 (maum_3)
+            if (token.contains("maum_3")) {
+                val type = parameters["type"]
+                return when (type) {
+                    "1" -> "화력을 약하게 설정했습니다."
+                    "2" -> "화력을 중간으로 설정했습니다."
+                    "3" -> "화력을 강하게 설정했습니다."
+                    else -> "화력을 조절했습니다."
+                }
+            }
+
+            // 5. 타이머 설정 (maum_4)
+            if (token.contains("maum_4")) {
+                val type = parameters["type"]
+                return when (type) {
+                    "1" -> "1분 타이머를 시작합니다."
+                    "2" -> "3분 타이머를 시작합니다."
+                    "3" -> "5분 타이머를 시작합니다."
+                    else -> "타이머를 설정했습니다."
+                }
+            }
+
+            // 그 외 알 수 없는 명령
+            return "알겠습니다. 처리했습니다."
+
+        } catch (e: Exception) {
+            Log.e(TAG, "TTS 텍스트 생성 중 오류: ${e.message}")
+            return "명령을 수행했습니다." // 안전장치
+        }
     }
 
     private fun getBaseUrl(): String = IpConfig.get(context)
@@ -680,7 +735,7 @@ class ConversationService(
         withContext(Dispatchers.Main) {
             addLog("STT: $sttResult (${sttLatency.toInt()}ms)")
         }
-        
+        /*
         val json = JSONObject().apply {
             put("data", sttResult)
             put("response_time", sttLatency)
@@ -701,6 +756,7 @@ class ConversationService(
         } catch (e: Exception) {
             Log.e(TAG, "Error sending STT data", e)
         }
+        */
     }
 
     private suspend fun sendLlmText(llmResult: String, llmLatency: Float) = withContext(Dispatchers.IO) {
@@ -708,7 +764,7 @@ class ConversationService(
         withContext(Dispatchers.Main) {
             addLog("LLM: $llmResult (${llmLatency.toInt()}ms)")
         }
-        
+        /*
         val json = JSONObject().apply {
             put("data", llmResult)
             put("response_time", llmLatency)
@@ -729,6 +785,7 @@ class ConversationService(
         } catch (e: Exception) {
             Log.e(TAG, "Error sending LLM data", e)
         }
+         */
     }
 
     private suspend fun sendTtsText(ttsResult: String, ttsFirstLatency: Float) = withContext(Dispatchers.IO) {
@@ -736,7 +793,7 @@ class ConversationService(
         withContext(Dispatchers.Main) {
             addLog("TTS: $ttsResult (${ttsFirstLatency.toInt()}ms)")
         }
-        
+        /*
         val json = JSONObject().apply {
             put("data", ttsResult)
             put("response_time", ttsFirstLatency)
@@ -757,6 +814,8 @@ class ConversationService(
         } catch (e: Exception) {
             Log.e(TAG, "Error sending TTS data", e)
         }
+
+         */
     }
 
     sealed class State {
