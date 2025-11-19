@@ -187,7 +187,7 @@ class ConversationService(
 
     private fun initializeLLAMA() {
         runCatching {
-            modelPath = "/data/local/tmp/model/korean/llama32-1b-htp.json"
+            modelPath = "/data/local/tmp/model/korean/llama-maum-skm-htp.json"
             if (llmClient.Init(modelPath) == 0) {
                 Log.d(TAG, "LLM initialization success")
             } else {

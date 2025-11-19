@@ -161,18 +161,18 @@ export default function HomeScreen() {
 
   const handleRecipeChat = () => {
     setHasChattedBefore(true);
-    router.push('/(tabs)/(home)/recipe-chat');
+    router.push('/recipe-chat');
   };
 
   const handleNewRecipeChat = () => {
     router.push({
-      pathname: '/(tabs)/(home)/recipe-chat',
+      pathname: '/recipe-chat',
       params: { newChat: 'true' },
     });
   };
 
   const handleContinueChat = () => {
-    router.push('/(tabs)/(home)/recipe-chat');
+    router.push('/recipe-chat');
   };
 
   const renderFlameIcons = (level: number) => {

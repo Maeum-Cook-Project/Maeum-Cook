@@ -9,10 +9,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+
+const OPENAI_API_KEY=process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 
 interface Message {
   id: string;
@@ -25,6 +29,8 @@ export default function RecipeChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const isNewChat = params.newChat === 'true';
+
+  const [isLoading, setIsLoading] = useState(false);
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -50,49 +56,77 @@ export default function RecipeChatScreen() {
       ]);
     }
   }, [isNewChat]);
+  
+  const fetchGPTResponse = async (userQuery:string)=>{
+    try{
+      const response = await fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':`Bearer ${OPENAI_API_KEY}`,
+        },
+        body:JSON.stringify({
+          model:'gpt-3.5-turbo',
+          messages:[
+            {
+              role:"system",
+              content:"당신을 친절하고 전문적인 요리사입니다. 사용자가 가진 식재료를 기반으로 한국인이 좋아하는 맛있는 레시피 3가지 추천해주세요. 필요한 재료와 조리법을 단계별로 명확하게 설명해주세요."
+            },
+            {role:"user",content:userQuery}
+          ],
+          temperature:0.7,
+        }),
+      });
 
-  const handleSend = () => {
+      const data = await response.json();
+
+      if (data.error){
+        throw new Error(data.error.message);
+      }
+      return data.choices[0].message.content.trim();
+    } catch (error){
+      console.error('GTP API Error:',error);
+      Alert.alert('오류','AI 쉐프와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+      return '죄송합니다. 레시피를 가져오는 중에 문제가 발생했습니다.';
+    }
+  };
+  const handleSend = async () => {
     if (inputText.trim() === '') return;
-
+    if (isLoading) return;
+    
+    const userText=inputText;
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputText,
+      text:userText,
       isUser: true,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInputText('');
+    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: generateAIResponse(inputText),
-        isUser: false,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
+    const aiReplyText= await fetchGPTResponse(userText);
+
+    const aiMessage:Message={
+      id:(Date.now()+1).toString(),
+      text:aiReplyText,
+      isUser:false,
+      timestamp:new Date(),
+    };
+    
+    setMessages((prev)=>[...prev,aiMessage]);
+    setIsLoading(false);
   };
 
-  const generateAIResponse = (userInput: string) => {
-    // Simple mock responses
-    const responses = [
-      '보유하신 식재료로 맛있는 볶음밥을 만들어보시는 건 어떨까요?\n\n재료:\n- 밥 2공기\n- 계란 2개\n- 양파 1/2개\n- 당근 1/4개\n- 간장 2스푼\n\n조리법:\n1. 양파와 당근을 잘게 썰어주세요\n2. 팬에 기름을 두르고 계란을 먼저 볶아주세요\n3. 야채를 넣고 볶다가 밥을 넣어주세요\n4. 간장으로 간을 맞춰주세요',
-      '감자와 돼지고기로 감자조림을 만들어보세요!\n\n재료:\n- 감자 3개\n- 돼지고기 200g\n- 양파 1개\n- 간장 3스푼\n- 설탕 1스푼\n\n조리법:\n1. 감자는 한입 크기로 썰어주세요\n2. 돼지고기는 먹기 좋은 크기로 썰어주세요\n3. 냄비에 모든 재료를 넣고 물을 자작하게 부어주세요\n4. 중불에서 20분간 조려주세요',
-      '당근과 계란으로 간단한 당근 계란볶음은 어떠세요?\n\n재료:\n- 당근 2개\n- 계란 3개\n- 소금, 후추\n\n조리법:\n1. 당근을 채썰어주세요\n2. 계란을 풀어주세요\n3. 팬에 당근을 먼저 볶다가 계란을 부어주세요\n4. 소금, 후추로 간을 맞춰주세요',
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
-  };
-
-  const toggleFavorite = () => {
+  const toggleFavorite=()=>{
     setIsFavorite(!isFavorite);
   };
-
+  
   return (
+    <View style ={styles.mainContainer}>
     <KeyboardAvoidingView
-      style={styles.container}
+      style={styles.keyboardView}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
@@ -145,6 +179,12 @@ export default function RecipeChatScreen() {
             </Text>
           </View>
         ))}
+        {isLoading&&(
+          <View style={[styles.messageBubble,styles.aiMessage,{flexDirection:'row',alignItems:'center',gap:8}]}>
+            <ActivityIndicator size="small" color={colors.textSecondary}/>
+            <Text style={{color:colors.textSecondary,fontSize:13}}>쉐프가 레시피를 생각 중입니다...</Text>
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.inputContainer}>
@@ -166,13 +206,17 @@ export default function RecipeChatScreen() {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
+  mainContainer:{
+    flex:1,
+    backgroundColor:'#ffffff',
+  },
+  keyboardView:{
+    flex:1,
   },
   header: {
     flexDirection: 'row',
