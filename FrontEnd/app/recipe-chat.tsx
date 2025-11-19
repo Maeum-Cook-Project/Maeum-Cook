@@ -15,8 +15,10 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const OPENAI_API_KEY=process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+const CHAT_STORAGE_KEY='recipe_chat_history';
 
 interface Message {
   id: string;
@@ -31,32 +33,57 @@ export default function RecipeChatScreen() {
   const isNewChat = params.newChat === 'true';
 
   const [isLoading, setIsLoading] = useState(false);
-  
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: '안녕하세요! 보유하신 식재료를 기반으로 레시피를 추천해드릴게요. 어떤 요리를 만들고 싶으신가요?',
-      isUser: false,
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages,setMessages]=useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    if (isNewChat) {
-      setMessages([
-        {
-          id: '1',
-          text: '안녕하세요! 보유하신 식재료를 기반으로 레시피를 추천해드릴게요. 어떤 요리를 만들고 싶으신가요?',
-          isUser: false,
-          timestamp: new Date(),
-        },
-      ]);
-    }
+    const loadChatHistory = async () =>{
+      try{
+        const welcomeMessage:Message={
+          id:'1',
+          text:'안녕하세요! 보유하신 식재료를 기반으로 레시피를 추천해드릴게요. 어떤 요리를 만들고 싶으신가요?',
+          isUser:false,
+          timestamp:new Date(),
+        };
+        if (isNewChat) {
+          console.log("새로운 채팅 시작(기록 초기화)");
+          await AsyncStorage.setItem(CHAT_STORAGE_KEY,JSON.stringify([welcomeMessage]));
+        }else{
+          console.log("이전 채팅 이어하기 시도..");
+          const saveData=await AsyncStorage.getItem(CHAT_STORAGE_KEY);
+
+          if(saveData){
+            const parsedMessages:Message[] = JSON.parse(saveData).map((msg:any)=>({
+              ...msg,
+              timestamp:new Date(msg.timestamp)
+            }));
+            setMessages(parsedMessages);
+          }else{
+            setMessages([welcomeMessage]);
+          }
+        }
+      }catch(error){
+        console.error('채팅 기록 로드 실패:',error);
+      }
+    };
+    loadChatHistory();
   }, [isNewChat]);
   
+  useEffect(()=>{
+    const saveChatHistory = async () => {
+      if (messages.length >0){
+        try{
+          await AsyncStorage.setItem(CHAT_STORAGE_KEY,JSON.stringify(messages));
+        }catch(error){
+          console.error('채팅 자동 저장 실패 : ',error);
+        }
+      }
+    };
+    saveChatHistory();
+  },[messages]);
+
   const fetchGPTResponse = async (userQuery:string)=>{
     try{
       const response = await fetch('https://api.openai.com/v1/chat/completions',{
@@ -172,9 +199,9 @@ export default function RecipeChatScreen() {
                 message.isUser ? styles.userTimestamp : styles.aiTimestamp,
               ]}
             >
-              {message.timestamp.toLocaleTimeString('ko-KR', {
-                hour: '2-digit',
-                minute: '2-digit',
+              {new Date(message.timestamp).toLocaleDateString('ko-KR',{
+                hour:'2-digit',
+                minute:'2-digit',
               })}
             </Text>
           </View>
