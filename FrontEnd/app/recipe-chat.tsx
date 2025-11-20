@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNetworkState } from 'expo-network';
 
 const OPENAI_API_KEY=process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 const CHAT_STORAGE_KEY='recipe_chat_history';
@@ -31,6 +32,7 @@ export default function RecipeChatScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const isNewChat = params.newChat === 'true';
+  const { isConnected } = useNetworkState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [messages,setMessages]=useState<Message[]>([]);
@@ -120,6 +122,16 @@ export default function RecipeChatScreen() {
   const handleSend = async () => {
     if (inputText.trim() === '') return;
     if (isLoading) return;
+    
+    // 인터넷 연결 확인 (레시피 챗봇은 OpenAI API 사용)
+    if (!isConnected) {
+      Alert.alert(
+        '인터넷 연결 필요',
+        '레시피 추천 기능을 사용하려면 인터넷 연결이 필요합니다. 와이파이 또는 모바일 데이터를 확인해주세요.',
+        [{ text: '확인' }]
+      );
+      return;
+    }
     
     const userText=inputText;
     const userMessage: Message = {

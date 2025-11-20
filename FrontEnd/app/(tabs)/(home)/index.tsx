@@ -8,6 +8,9 @@ import {
   TouchableOpacity,
   Switch,
   Platform,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
@@ -21,7 +24,62 @@ export default function HomeScreen() {
   const { isTimerActive, timeRemaining, startTimer } = useTimer();
 
   //Websocket연결 전송&수신 가능
-  const {isConnected,sendJsonCommand,lastMessage} = useWebSocket();
+  const {
+    isConnected,
+    isConnecting,
+    connectionError,
+    serverIp,
+    serverPort,
+    sendJsonCommand,
+    lastMessage,
+    reconnect,
+    setServerConfig,
+  } = useWebSocket();
+
+  const [showIpModal, setShowIpModal] = useState(false);
+  const [ipInput, setIpInput] = useState(serverIp);
+  const [portInput, setPortInput] = useState(serverPort.toString());
+
+  // 서버 설정 변경 시 입력 필드 업데이트
+  useEffect(() => {
+    setIpInput(serverIp);
+    setPortInput(serverPort.toString());
+  }, [serverIp, serverPort]);
+
+  // 서버 설정 저장 핸들러
+  const handleSaveConfig = async () => {
+    // IP 주소 검증
+    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipPattern.test(ipInput.trim())) {
+      Alert.alert('오류', '올바른 IP 주소 형식을 입력해주세요.\n예: 192.168.0.3');
+      return;
+    }
+
+    // 포트 번호 검증
+    const port = parseInt(portInput.trim(), 10);
+    if (isNaN(port) || port < 1 || port > 65535) {
+      Alert.alert('오류', '올바른 포트 번호를 입력해주세요.\n범위: 1-65535');
+      return;
+    }
+
+    await setServerConfig(ipInput.trim(), port);
+    setShowIpModal(false);
+    Alert.alert('완료', `서버 설정이 ${ipInput.trim()}:${port}로 변경되었습니다.`);
+  };
+
+  // 연결 상태 텍스트 생성
+  const getConnectionStatusText = () => {
+    const address = `${serverIp}:${serverPort}`;
+    if (isConnected) {
+      return `QCS6490 연결됨 (${address})`;
+    } else if (isConnecting) {
+      return `연결 중... (${address})`;
+    } else if (connectionError) {
+      return `연결 실패 (${address})`;
+    } else {
+      return `서버 연결 끊김 (${address})`;
+    }
+  };
 
   // Device states
   const [inductionPower, setInductionPower] = useState(false);
@@ -206,9 +264,34 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={isConnected ? styles.statusConnected:styles.statusOffline}>
-          {isConnected? "QCS6490 연결됨" : "서버 연결 끊김"}
-        </Text>
+        <TouchableOpacity
+          onPress={() => setShowIpModal(true)}
+          style={styles.statusContainer}
+        >
+          <View style={styles.statusRow}>
+            <View style={[
+              styles.statusIndicator,
+              isConnected ? styles.statusIndicatorConnected : 
+              isConnecting ? styles.statusIndicatorConnecting : 
+              styles.statusIndicatorDisconnected
+            ]} />
+            <Text style={isConnected ? styles.statusConnected : 
+                          isConnecting ? styles.statusConnecting : 
+                          styles.statusOffline}>
+              {getConnectionStatusText()}
+            </Text>
+            <IconSymbol name="gear" size={16} color={colors.textSecondary} />
+          </View>
+        </TouchableOpacity>
+        {!isConnected && !isConnecting && (
+          <TouchableOpacity
+            onPress={reconnect}
+            style={styles.reconnectButton}
+          >
+            <IconSymbol name="arrow.clockwise" size={16} color={colors.accent} />
+            <Text style={styles.reconnectButtonText}>재연결</Text>
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>Maeum Kitchen</Text>
       </View>
 
@@ -373,26 +456,129 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* 서버 설정 모달 */}
+      <Modal
+        visible={showIpModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowIpModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>서버 설정</Text>
+            <Text style={styles.modalSubtitle}>
+              QCS6490 보드의 IP 주소와 포트 번호를 입력하세요
+            </Text>
+            
+            <Text style={styles.modalLabel}>IP 주소</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={ipInput}
+              onChangeText={setIpInput}
+              placeholder="예: 192.168.0.3"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="numeric"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            
+            <Text style={styles.modalLabel}>포트 번호</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={portInput}
+              onChangeText={setPortInput}
+              placeholder="예: 8765"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="numeric"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButtonCancel}
+                onPress={() => {
+                  setShowIpModal(false);
+                  setIpInput(serverIp);
+                  setPortInput(serverPort.toString());
+                }}
+              >
+                <Text style={styles.modalButtonCancelText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalButtonConfirm}
+                onPress={handleSaveConfig}
+              >
+                <Text style={styles.modalButtonConfirmText}>저장</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  statusConnected:{
-    position:'absolute',
-    top:Platform.OS==='ios'?60:40,
-    right:20,
-    fontSize:12,
-    color:'green',
-    fontWeight:'bold',
+  statusContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    right: 20,
+    zIndex: 10,
   },
-  statusOffline:{
-    position:'absolute',
-    top:Platform.OS==='ios'?60:40,
-    right:20,
-    fontSize:12,
-    color:'red',
-    fontWeight:'bold',
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusIndicatorConnected: {
+    backgroundColor: '#4CAF50',
+  },
+  statusIndicatorConnecting: {
+    backgroundColor: '#FF9800',
+  },
+  statusIndicatorDisconnected: {
+    backgroundColor: '#F44336',
+  },
+  statusConnected: {
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  statusConnecting: {
+    fontSize: 12,
+    color: '#FF9800',
+    fontWeight: '600',
+  },
+  statusOffline: {
+    fontSize: 12,
+    color: '#F44336',
+    fontWeight: '600',
+  },
+  reconnectButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 90 : 70,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.card,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  reconnectButtonText: {
+    fontSize: 11,
+    color: colors.accent,
+    fontWeight: '600',
   },
   container: {
     flex: 1,
@@ -580,5 +766,77 @@ const styles = StyleSheet.create({
   },
   recipeButtonSecondary: {
     backgroundColor: colors.secondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  modalInput: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.highlight,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButtonCancel: {
+    flex: 1,
+    backgroundColor: colors.highlight,
+    borderRadius: 8,
+    paddingVertical: 12,
+  },
+  modalButtonCancelText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  modalButtonConfirm: {
+    flex: 1,
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+    paddingVertical: 12,
+  },
+  modalButtonConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

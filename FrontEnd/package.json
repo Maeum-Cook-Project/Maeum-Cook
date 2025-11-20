@@ -5,7 +5,7 @@
   "scripts": {
     "build": "vite build",
     "workbox": "workbox generateSW workbox-config.js",
-    "dev": "EXPO_NO_TELEMETRY=1 expo start --tunnel",
+    "dev": "EXPO_NO_TELEMETRY=1 expo start --lan --port 8081",
     "android": "EXPO_NO_TELEMETRY=1 expo start --android",
     "ios": "EXPO_NO_TELEMETRY=1 expo start --ios",
     "web": "EXPO_NO_TELEMETRY=1 expo start --web",

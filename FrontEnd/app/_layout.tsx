@@ -11,8 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { Stack, router } from 'expo-router';
-import { useNetworkState } from 'expo-network';
-import { useColorScheme, Alert, View, ActivityIndicator } from 'react-native';
+import { useColorScheme, View, ActivityIndicator } from 'react-native';
 import { SystemBars } from 'react-native-edge-to-edge';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { TimerProvider } from '@/contexts/TimerContext';
@@ -22,7 +21,6 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const { isConnected } = useNetworkState();
   const [isReady, setIsReady] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
 
@@ -66,16 +64,6 @@ export default function RootLayout() {
       }
     }
   }, [loaded, isReady, hasCompletedOnboarding]);
-
-  useEffect(() => {
-    if (isConnected === false) {
-      Alert.alert(
-        'No Internet Connection',
-        'Please check your internet connection and try again.',
-        [{ text: 'OK' }]
-      );
-    }
-  }, [isConnected]);
 
   if (!loaded || !isReady) {
     return (
