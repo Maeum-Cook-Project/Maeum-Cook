@@ -88,6 +88,23 @@ export default function RecipeChatScreen() {
 
   const fetchGPTResponse = async (userQuery:string)=>{
     try{
+      const savedIngredientsJson = await AsyncStorage.getItem('user_ingredients');
+      const myIngredients = savedIngredientsJson ? JSON.parse(savedIngredientsJson):['양파','당근','감자','돼지고기','계란','대파','마늘','고추'];
+
+      const ingredientsString=myIngredients.join(', ');
+
+      const systemPrompt = `
+        당신은 한국 요리 전문 쉐프입니다.
+        
+        [현재 사용자의 냉장고 재료]
+        ${ingredientsString}
+        
+        [지시사항]
+        1. 사용자의 질문에 답변하되, 위 [냉장고 재료]를 최대한 활용하는 레시피를 우선적으로 추천해주세요.
+        2. 만약 사용자가 "뭐 해먹지?"나 "레시피 추천해줘"라고만 물어보면, 현재 가진 재료로 만들 수 있는 최고의 요리 1가지를 추천하고 조리법을 알려주세요.
+        3. 없는 재료가 필요하다면, 그 재료는 사야 한다고 친절하게 알려주세요.
+      `;
+
       const response = await fetch('https://api.openai.com/v1/chat/completions',{
         method:'POST',
         headers:{
@@ -99,7 +116,7 @@ export default function RecipeChatScreen() {
           messages:[
             {
               role:"system",
-              content:"당신을 친절하고 전문적인 요리사입니다. 사용자가 가진 식재료를 기반으로 한국인이 좋아하는 맛있는 레시피 3가지 추천해주세요. 필요한 재료와 조리법을 단계별로 명확하게 설명해주세요."
+              content: systemPrompt
             },
             {role:"user",content:userQuery}
           ],

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,27 +10,57 @@ import {
   Modal,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 
+const INGREDIENTS_KEY='user_ingredients'
+
 export default function IngredientsScreen() {
-  const [ingredients, setIngredients] = useState([
-    '양파', '당근', '감자', '돼지고기', '계란', '대파', '마늘', '고추',
-  ]);
+  const [ingredients, setIngredients]=useState<string[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newIngredient, setNewIngredient] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  useEffect(()=>{
+    const loadIngredients = async() =>{
+      try{
+        const savedData = await AsyncStorage.getItem(INGREDIENTS_KEY);
+        if(savedData){
+          setIngredients(JSON.parse(savedData));
+        }else{
+          const defaultIngredients=['양파','당근','감자','돼지고기','계란','대파','마늘','고추'];
+          setIngredients(defaultIngredients);
+          await AsyncStorage.setItem(INGREDIENTS_KEY,JSON.stringify(defaultIngredients));
+        }
+      }catch(e){
+        console.error('재료 불러오기 실패:',e);
+      }
+    };
+    loadIngredients();
+  },[]);
+
+  const saveIngredients = async (newList: string[])=>{
+    setIngredients(newList);
+    try{
+      await AsyncStorage.setItem(INGREDIENTS_KEY,JSON.stringify(newList));
+    }catch(e){
+      console.error('재료 저장 실패: ',e)
+    }
+  }
+
   const handleAddIngredient = () => {
     if (newIngredient.trim() !== '') {
-      setIngredients([...ingredients, newIngredient.trim()]);
+      const newList = [...ingredients,newIngredient.trim()];
+      saveIngredients(newList);
       setNewIngredient('');
       setShowAddModal(false);
     }
   };
 
   const handleDeleteIngredient = (index: number) => {
-    setIngredients(ingredients.filter((_, i) => i !== index));
+    const newList = ingredients.filter((_,i)=>i!==index);
+    saveIngredients(newList);
   };
 
   const filteredIngredients = ingredients.filter((ingredient) =>
