@@ -17,6 +17,7 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNetworkState } from 'expo-network';
+import * as Speech from 'expo-speech';
 
 const OPENAI_API_KEY=process.env.EXPO_PUBLIC_OPENAI_API_KEY;
 const CHAT_STORAGE_KEY='recipe_chat_history';
@@ -38,7 +39,15 @@ export default function RecipeChatScreen() {
   const [messages,setMessages]=useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
+  const [speakingMessageId,setSpeakingMessageId] = useState<string | null>(null);
+  const speakingIdRef = useRef<string|null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(()=>{
+    return () => {
+      Speech.stop();
+    };
+  },[]);
 
   useEffect(() => {
     const loadChatHistory = async () =>{
@@ -85,6 +94,40 @@ export default function RecipeChatScreen() {
     };
     saveChatHistory();
   },[messages]);
+
+  const handleSpeak = (id:string, text:string)=>{
+    //현재 읽고 있는 메시지 다시 누르면 멈춤
+    if(speakingMessageId===id){
+      Speech.stop();
+      speakingIdRef.current=null;
+      setSpeakingMessageId(null);
+      return;
+    }
+    //다른 메시지 눌렀을 때
+    //일단 소리 멈추고 -> 메시지 주도권 변경
+    Speech.stop();
+
+    speakingIdRef.current=id;
+    setSpeakingMessageId(id);
+
+    Speech.speak(text,{
+      language:'ko',
+      pitch:1.0,
+      rate:0.9,
+      onDone:()=>{
+        if(speakingIdRef.current===id){
+          speakingIdRef.current=null;
+          setSpeakingMessageId(null);
+        }
+      },
+      onStopped : () => {
+        if(speakingIdRef.current===id){
+          speakingIdRef.current=null;
+          setSpeakingMessageId(null);
+        }
+      },
+    });
+  };
 
   const fetchGPTResponse = async (userQuery:string)=>{
     try{
@@ -206,35 +249,53 @@ export default function RecipeChatScreen() {
         contentContainerStyle={styles.messagesContent}
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
       >
-        {messages.map((message) => (
-          <View
-            key={message.id}
-            style={[
-              styles.messageBubble,
-              message.isUser ? styles.userMessage : styles.aiMessage,
-            ]}
-          >
-            <Text
+        {messages.map((message) => {
+          const isCurrentSpeaking=speakingMessageId===message.id;
+
+          return (
+            <View
+              key={message.id}
               style={[
-                styles.messageText,
-                message.isUser ? styles.userMessageText : styles.aiMessageText,
+                styles.messageBubble,
+                message.isUser ? styles.userMessage : styles.aiMessage,
               ]}
             >
-              {message.text}
-            </Text>
-            <Text
-              style={[
-                styles.timestamp,
-                message.isUser ? styles.userTimestamp : styles.aiTimestamp,
-              ]}
-            >
-              {new Date(message.timestamp).toLocaleDateString('ko-KR',{
-                hour:'2-digit',
-                minute:'2-digit',
-              })}
-            </Text>
-          </View>
-        ))}
+              <Text
+                style={[
+                  styles.messageText,
+                  message.isUser ? styles.userMessageText : styles.aiMessageText,
+                ]}
+              >
+                {message.text}
+              </Text>
+
+              {!message.isUser &&(
+                <View style={styles.ttsContainer}>
+                  <TouchableOpacity onPress={()=>handleSpeak(message.id,message.text)} style={styles.ttsButton}>
+                    <IconSymbol name={isCurrentSpeaking? "pause.circle.fill":"speaker.wave.2.fill"}
+                    size={20}
+                    color={colors.accent}/>
+                    <Text style={styles.ttsText}>
+                      {isCurrentSpeaking ? "멈추기":"읽어주기"}
+                    </Text>
+                  </TouchableOpacity>
+              </View>
+              )}
+
+              <Text
+                style={[
+                  styles.timestamp,
+                  message.isUser ? styles.userTimestamp : styles.aiTimestamp,
+                ]}
+              >
+                {new Date(message.timestamp).toLocaleDateString('ko-KR',{
+                  hour:'2-digit',
+                  minute:'2-digit',
+                })}
+              </Text>
+            </View>
+          );
+        })}
         {isLoading&&(
           <View style={[styles.messageBubble,styles.aiMessage,{flexDirection:'row',alignItems:'center',gap:8}]}>
             <ActivityIndicator size="small" color={colors.textSecondary}/>
@@ -366,4 +427,21 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     opacity: 0.5,
   },
+  ttsContainer:{
+    marginTop:8,
+    flexDirection:'row',
+  },
+  ttsButton:{
+    flexDirection:'row',
+    alignItems:'center',
+    padding:6,
+    backgroundColor:colors.background,
+    borderRadius:12,
+  },
+  ttsText:{
+    fontSize:12,
+    color:colors.accent,
+    fontWeight:'600',
+    marginLeft:4
+  }
 });

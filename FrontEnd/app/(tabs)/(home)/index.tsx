@@ -18,6 +18,9 @@ import { IconSymbol } from '@/components/IconSymbol';
 import Slider from '@react-native-community/slider';
 import { useTimer } from '@/contexts/TimerContext';
 import { useWebSocket } from '@/contexts/WebSocketContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -88,10 +91,25 @@ export default function HomeScreen() {
   const [ventilation, setVentilation] = useState(false);
   const [hasChattedBefore, setHasChattedBefore] = useState(false);
 
-  // Sample ingredients
-  const [ingredients, setIngredients] = useState([
-    '양파', '당근', '감자', '돼지고기', '계란'
-  ]);
+  const [ingredients,setIngredients]=useState<string[]>([]);
+
+  useFocusEffect(
+    useCallback(()=>{
+      const loadIngredients=async()=>{
+        try{
+          const savedData=await AsyncStorage.getItem('user_ingredients');
+          if(savedData){
+            setIngredients(JSON.parse(savedData));
+          }else{
+            setIngredients(['양파','당근','감자','돼지고기','계란']);
+          }
+        }catch(e){
+          console.error('홈 화면 재료 로딩 실패 : ',e);
+        }
+      };
+      loadIngredients();
+    },[])
+  );
 
   //WebSocket 수신기(상태 동기화 구현) 외부 통신으로부터 상태 변경
   useEffect(()=>{
