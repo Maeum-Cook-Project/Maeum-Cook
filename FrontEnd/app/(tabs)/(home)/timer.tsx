@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -7,7 +6,7 @@ import {
   TouchableOpacity,
   Animated,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import Svg, { Circle } from 'react-native-svg';
@@ -17,7 +16,6 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default function TimerScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
   const { 
     timeRemaining, 
     totalTime, 
@@ -34,6 +32,7 @@ export default function TimerScreen() {
   const strokeWidth = 12;
   const circumference = 2 * Math.PI * radius;
 
+  // 애니메이션 효과
   useEffect(() => {
     if (totalTime > 0) {
       const progressValue = 1 - (timeRemaining / totalTime);
@@ -82,7 +81,6 @@ export default function TimerScreen() {
 
       <View style={styles.timerContainer}>
         <Svg width={radius * 2 + strokeWidth * 2} height={radius * 2 + strokeWidth * 2}>
-          {/* Background circle */}
           <Circle
             cx={radius + strokeWidth}
             cy={radius + strokeWidth}
@@ -91,12 +89,11 @@ export default function TimerScreen() {
             strokeWidth={strokeWidth}
             fill="none"
           />
-          {/* Progress circle */}
           <AnimatedCircle
             cx={radius + strokeWidth}
             cy={radius + strokeWidth}
             r={radius}
-            stroke={colors.accent}
+            stroke={timeRemaining === 0 && totalTime > 0 ? "#FF4444" : colors.accent}
             strokeWidth={strokeWidth}
             fill="none"
             strokeDasharray={circumference}
@@ -107,7 +104,15 @@ export default function TimerScreen() {
           />
         </Svg>
         <View style={styles.timeDisplay}>
-          <Text style={styles.timeText}>{formatTime(timeRemaining)}</Text>
+          <Text style={[
+            styles.timeText, 
+            timeRemaining === 0 && totalTime > 0 && { color: "#FF4444" }
+          ]}>
+            {formatTime(timeRemaining)}
+          </Text>
+          {timeRemaining === 0 && totalTime > 0 && (
+            <Text style={styles.finishText}>완료!</Text>
+          )}
         </View>
       </View>
 
@@ -136,60 +141,14 @@ export default function TimerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingTop: 60,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: colors.text,
-    marginLeft: 8,
-    fontWeight: '600',
-  },
-  timerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  timeDisplay: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  timeText: {
-    fontSize: 64,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 80,
-    gap: 24,
-  },
-  controlButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.accent,
-  },
-  mainControlButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.accent,
-    borderWidth: 0,
-  },
+  container: { flex: 1, backgroundColor: colors.background, paddingTop: 60 },
+  backButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
+  backButtonText: { fontSize: 16, color: colors.text, marginLeft: 8, fontWeight: '600' },
+  timerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  timeDisplay: { position: 'absolute', justifyContent: 'center', alignItems: 'center' },
+  timeText: { fontSize: 64, fontWeight: '700', color: colors.accent },
+  finishText: { fontSize: 24, fontWeight: '600', color: '#FF4444', marginTop: 8 },
+  controls: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingBottom: 80, gap: 24 },
+  controlButton: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: colors.accent },
+  mainControlButton: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.accent, borderWidth: 0 },
 });

@@ -24,7 +24,9 @@ import { useCallback } from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { isTimerActive, timeRemaining, startTimer } = useTimer();
+  const { isRunning, timeRemaining,totalTime, startTimer } = useTimer();
+
+  const isTimerActive=(isRunning||timeRemaining>0)&&totalTime>0;
 
   //Websocket연결 전송&수신 가능
   const {
@@ -165,6 +167,7 @@ export default function HomeScreen() {
       command:"power",
       value:isOn?"on":"off"
     });
+    
     //setSinkWater(isOn);
   };
   //3. 환풍기 on/off
@@ -177,7 +180,7 @@ export default function HomeScreen() {
     //setVentilation(isOn);
   };
 
-  //4. 인덕션 on/off
+  //4. 인덕션 화력조절
   const handleSliderComplete = (value : number)=>{
     let level=0; 
     let snappedValue=0;
@@ -199,6 +202,8 @@ export default function HomeScreen() {
     } else {
       // 1, 2, 3단은 '화력 조절' 명령 전송
       sendJsonCommand({ device: "induction", command: "level", value: level });
+      //setInductionLevel(level);
+      //setInductionPower(true);g
     }
   };
 
@@ -217,21 +222,16 @@ export default function HomeScreen() {
     const seconds = minutes * 60;
 
     // 서버로 '타이머 설정' 명령 전송
-    let type = 1; // 1분
-    if (minutes === 3) type = 2; // 3분
-    if (minutes === 5) type = 3; // 5분
-    
     sendJsonCommand({
-      device: "induction",
-      command: "timer",
-      value: seconds
+      device:"induction",
+      command:"timer",
+      value:seconds
     });
-
-    // 기존 타이머 화면 이동 로직
     startTimer(minutes);
+
     router.push({
-      pathname: '/(tabs)/(home)/timer',
-      params: { minutes: minutes.toString() },
+      pathname:'/(tabs)/(home)/timer',
+      params:{minutes:minutes.toString()},
     });
   };
 

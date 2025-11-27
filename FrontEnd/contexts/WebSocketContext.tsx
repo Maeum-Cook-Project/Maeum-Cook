@@ -2,7 +2,7 @@ import React, {createContext, useContext, useEffect,useRef,useState,ReactNode, u
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 기본 설정 (설정에서 변경 가능)
-const DEFAULT_QCS6490_IP = "192.168.0.3";
+const DEFAULT_QCS6490_IP = "192.168.0.2";
 // 주의: 보드 코드에서는 포트 8765를 사용하지만, 실제로는 5555로 포트 포워딩되어 있을 수 있습니다
 // 두 포트 모두 시도해보세요
 const DEFAULT_WEBSOCKET_PORT = 8765; // 보드 코드의 기본 포트
