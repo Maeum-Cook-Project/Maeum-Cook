@@ -508,7 +508,10 @@ class ConversationService(
     }
 
     private fun startSpeaking(text: String) {
+        vadManager.stopRecording()
+
         _state.value = State.STATE_TTS_RUNNING
+
         CoroutineScope(Dispatchers.IO).launch {
             runCatching {
                 playTTS(text)

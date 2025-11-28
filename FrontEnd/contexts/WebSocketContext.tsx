@@ -11,7 +11,7 @@ const WS_PATH = "/control";
 // 재연결 설정
 const RECONNECT_INITIAL_DELAY = 1000; // 1초
 const RECONNECT_MAX_DELAY = 30000; // 최대 30초
-const RECONNECT_MULTIPLIER = 1.5; // 지수 백오프 배수
+const RECONNECT_MULTIPLIER = 1.5; // 지수 백오프 배수ㅑ
 
 //Context가 제공할 값 정의
 interface WebSocketContextType{

@@ -3,6 +3,7 @@ import { Alert, Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { useRouter,useSegments } from 'expo-router';
+import { useWebSocket } from './WebSocketContext';
 
 interface TimerContextType {
   timeRemaining: number;
@@ -27,6 +28,30 @@ export const TimerProvider = ({ children }: { children: ReactNode }) => {
   
   const router = useRouter();
   const segments = useSegments();
+  const {sendJsonCommand,isConnected,lastMessage}=useWebSocket();
+
+  useEffect(() => {
+    if (lastMessage) {
+      try {
+        const cmd = JSON.parse(lastMessage);
+        
+        // 서버에서 "타이머 설정" 명령이 왔을 때
+        if (cmd.device === 'induction' && cmd.command === 'timer') {
+          console.log(`[TimerContext] 서버 명령 수신: ${cmd.value}초 타이머 시작`);
+          
+          // 초(Seconds)를 분(Minutes)으로 변환 (올림 처리)
+          // 예: 60초 -> 1분, 180초 -> 3분
+          const minutes = Math.ceil(cmd.value / 60);
+          
+          // 앱 내부 타이머 시작!
+          startTimer(minutes);
+          router.push('/(tabs)/(home)/timer');
+        }
+      } catch (e) {
+        console.error("[TimerContext] 메시지 파싱 오류:", e);
+      }
+    }
+  }, [lastMessage]);
 
 
   // 1. 타이머 카운트다운 로직
